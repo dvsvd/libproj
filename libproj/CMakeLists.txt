@@ -1,4 +1,8 @@
-cmake_minimum_required (VERSION 3.8)
+set(LIBRARY_NAME libproj)
 
-add_library(libproj SHARED "libproj.c")
-set_target_properties(libproj PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+add_library(${LIBRARY_NAME} SHARED "")
+set_target_properties(${LIBRARY_NAME} PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX}
+RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin
+)
+
+target_sources(${LIBRARY_NAME} PRIVATE libproj.c)
