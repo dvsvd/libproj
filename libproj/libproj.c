@@ -1,8 +1,10 @@
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
+#include <dlfcn.h>
+#include <fcntl.h>
 
-int main(int argc, char** argv)
+__attribute__((constructor)) static void setup(void)
 {
-    printf("Hello from shared lib");
-    return 0;
+    printf("called setup()\n");
 }
