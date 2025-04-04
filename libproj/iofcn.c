@@ -1,4 +1,6 @@
 #include "iofcn.h"
+#include "shared_buf.h"
+#include <time.h>
 
 static open_t real_open;
 static close_t real_close;
@@ -17,7 +19,6 @@ int open(const char* pathname, int flags, ...)
         if(msg)
         {
             fprintf(stderr, "%s", msg);
-            exit(0x1337);
         }
     }
     return real_open(pathname, flags);
