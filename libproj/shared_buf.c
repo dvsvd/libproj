@@ -1,4 +1,5 @@
 #include "shared_buf.h"
+#include "utility.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -65,11 +66,12 @@ int shared_buf_destroy(shared_buf_t* buf)
     }
 }
 
-int shared_buf_write(shared_buf_t* buf, const void* src, size_t n)
+ssize_t shared_buf_write_pos(shared_buf_t* buf, size_t pos, const void* src, size_t n)
 {
     int ret;
+    ssize_t avail = BUF_SIZE - pos; /* Bytes available */
     ssize_t diff;
-    if(buf == NULL || src == NULL || n > BUF_SIZE)
+    if(buf == NULL || src == NULL || pos >= BUF_SIZE || n > avail)
     {
         errno = EINVAL;
         return -1;
@@ -84,22 +86,68 @@ int shared_buf_write(shared_buf_t* buf, const void* src, size_t n)
         errno = ret;
         return -1;
     }
-    memmove(buf->buf, src, n);
-
-    diff = buf->count - n;
+    /* Prevent 0-valued gaps */
+    if(pos - buf->count > 1)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+    /* The function will not fail if there's not enough space in buffer;
+     * it'll copy as many bytes as it can */
+    n = MIN(avail, n);
+    /* Update count if neccesary */
+    if(pos + n > buf->count)
+    {
+        buf->count = pos + n;
+    }
+    memcpy(buf->buf + pos, src, n);
+    diff = BUF_SIZE - n;
     if(diff > 0)
     {
         /* Zero leftovers */
-        memset(buf->buf + n, 0, diff);
+        memset(buf->buf + pos + n, 0, diff);
     }
-    buf->count = n;
     ret = pthread_rwlock_unlock(&buf->lock);
     if(ret)
     {
         errno = ret;
         return -1;
     }
-    return 0;
+    return n;
+}
+
+ssize_t shared_buf_write(shared_buf_t* buf, const void* src, size_t n)
+{
+    ssize_t ret = shared_buf_write_pos(buf, 0, src, n);
+    if(ret == -1)
+    {
+        return ret;
+    }
+    size_t diff = BUF_SIZE - ret;
+    if(diff > 0)
+    {
+        /* Zero leftovers */
+        memset(buf->buf + ret, 0, diff);
+    }
+    return ret;
+}
+
+ssize_t shared_buf_append(shared_buf_t* buf, const void* src, size_t n)
+{
+    ssize_t ret, diff;
+    _Atomic size_t* cnt = &buf->count;
+    ret = shared_buf_write_pos(buf, 0, src, n);
+    if(ret == -1)
+    {
+        return ret;
+    }
+    size_t diff = BUF_SIZE - ret;
+    if(diff > 0)
+    {
+        /* Zero leftovers */
+        memset(buf->buf + ret, 0, diff);
+    }
+    return ret;
 }
 
 int shared_buf_read(const shared_buf_t* buf, void* dst, size_t n)
@@ -120,6 +168,7 @@ int shared_buf_read(const shared_buf_t* buf, void* dst, size_t n)
         errno = ret;
         return -1;
     }
+    n = 
     memmove(dst, buf->buf, n);
     ret = pthread_rwlock_unlock(&buf->lock);
     if(ret)

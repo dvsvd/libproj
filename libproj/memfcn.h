@@ -1,3 +1,5 @@
+#ifndef MEMFCN_H
+#define MEMFCN_H
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,3 +12,4 @@ typedef void* (*realloc_t)(void*, size_t);
 void* malloc(size_t size);
 void free(void* ptr);
 void* realloc(void* ptr, size_t size);
+#endif /* MEMFCN_H */

@@ -1,3 +1,5 @@
+#ifndef IOFCN_H
+#define IOFCN_H
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,3 +18,4 @@ int close(int fd);
 off_t lseek(int fd, off_t offset, int whence);
 ssize_t read(int fd, void* buf, size_t count);
 ssize_t write(int fd, const void* buf, size_t count);
+#endif /* IOFCN_H */

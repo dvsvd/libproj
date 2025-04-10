@@ -2,13 +2,15 @@
 #include "shared_buf.h"
 #include <time.h>
 
+/* Library internal shared buf */
+extern shared_buf_t lib_shared_buf;
+
 static malloc_t real_malloc;
 static free_t real_free;
 static realloc_t real_realloc;
 
 void* malloc(size_t size)
 {
-    //printf("called malloc()\n");
     if(!real_malloc)
     {
         dlerror();
@@ -16,7 +18,6 @@ void* malloc(size_t size)
         char* msg = dlerror();
         if(msg)
         {
-            //fprintf(stderr, "%s", msg);
         }
     }
     return real_malloc(size);
@@ -24,7 +25,6 @@ void* malloc(size_t size)
 
 void free(void* ptr)
 {
-    //printf("called free()\n");
     if(!real_free)
     {
         real_free = dlsym(RTLD_NEXT, "free");
@@ -34,7 +34,6 @@ void free(void* ptr)
 
 void* realloc(void* ptr, size_t size)
 {
-    //printf("called realloc()\n");
     if(!real_realloc)
     {
         real_realloc = dlsym(RTLD_NEXT, "realloc");
