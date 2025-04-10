@@ -11,10 +11,6 @@ typedef struct {
     pthread_rwlock_t lock;
 } shared_buf_t;
 
-//TODO: return values of functions
-// shared buf write pos
-// write with timestamp
-
 /* Initialize shared buffer buf and pass pshared attribute to its rwlock */
 int shared_buf_init(shared_buf_t* buf, int pshared);
 /* Deinitialize shared buffer buf */

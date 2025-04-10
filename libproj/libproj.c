@@ -1,19 +1,43 @@
 #define _GNU_SOURCE
-#include "shared_buf.h"
+#include "buf_queue.h"
 #include "utility.h"
+#include "memfcn.h"
 #include <time.h>
 #include <errno.h>
 #include <threads.h>
 #include <stdio.h>
 #include <string.h>
 
-/* Library internal shared buf */
-shared_buf_t lib_shared_buf;
+/* Library internal shared buf queue */
+buf_queue_t lib_shared_q;
+
+extern malloc_t real_malloc;
+extern free_t real_free;
+extern realloc_t real_realloc;
 
 __attribute__((constructor)) static void setup(void)
 {
+    char* msg;
     /* Initialize library shared buf */
-    shared_buf_init(&lib_shared_buf, PTHREAD_PROCESS_SHARED);
+    buf_queue_init(&lib_shared_q, PTHREAD_PROCESS_SHARED);
+    real_malloc = dlsym(RTLD_NEXT, "malloc");
+    msg = dlerror();
+    if(msg)
+    {
+        fprintf(stderr, msg);
+    }
+    real_realloc = dlsym(RTLD_NEXT, "realloc");
+    msg = dlerror();
+    if(msg)
+    {
+        fprintf(stderr, msg);
+    }
+    real_free = dlsym(RTLD_NEXT, "free");
+    msg = dlerror();
+    if(msg)
+    {
+        fprintf(stderr, msg);
+    }
 }
 
 int write_with_timestamp(shared_buf_t* buf, const void* src, size_t n)
@@ -23,7 +47,7 @@ int write_with_timestamp(shared_buf_t* buf, const void* src, size_t n)
     size_t tmsize; // size of the timestamp in the buffer
     struct timespec ts = {0};
     struct tm gt = {0};
-    char databuf[BUF_SIZE] = {0};
+    char databuf[100] = {0};
     ret = timespec_get(&ts, TIME_UTC);
     if(ret == 0)
     {
@@ -32,7 +56,7 @@ int write_with_timestamp(shared_buf_t* buf, const void* src, size_t n)
     }
     localtime_r(&ts.tv_sec, &gt);
     msecs = ts.tv_nsec / 1000000L;
-    tmsize = strftime(databuf, BUF_SIZE, "[%F %T.", &gt);
+    tmsize = strftime(databuf, 100, "[%F %T.", &gt);
     if(tmsize == 0)
     {
         errno = ENOMEM;
@@ -45,11 +69,13 @@ int write_with_timestamp(shared_buf_t* buf, const void* src, size_t n)
         return -1;
     }
     tmsize += ret;
-    return
+    ret = shared_buf_write(buf, databuf, tmsize);
+    ret = shared_buf_append(buf, src, n);
+    return 0;
 }
 
 __attribute__((destructor)) static void deinit(void)
 {
     /* Deinitialize library shared buf */
-    shared_buf_destroy(&lib_shared_buf);
+    buf_queue_destroy(&lib_shared_q);
 }
