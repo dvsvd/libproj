@@ -1,4 +1,6 @@
 #include "logger.h"
+#include "utility.h"
+#include "memfcn.h"
 
 int logger_init(logger_t* l, const char* pathname)
 {
@@ -22,15 +24,10 @@ int log_from_queue(void* data)
 {
     logger_t* l = (logger_t*)data;
     shared_buf_t* buf;
-    while(1)
+    /* Blocking call to pop */
+    while(buf = pop(&l->q))
     {
-        /* Blocking call to pop */
-        buf = pop(&l->q);
-        if(buf)
-        {
-            fwrite(buf->buf, sizeof buf->buf[0], buf->count, l->file);
-            fputc('\n', l->file);
-        }
+        fwrite(buf->buf, sizeof buf->buf[0], buf->count, l->file);
     }
     return 0;
 }
@@ -60,4 +57,20 @@ int logger_destroy(logger_t* l)
         return -1;
     }
     ret = buf_queue_destroy(&l->q);
+    ret = fclose(l->file);
+}
+
+void log_write(logger_t* l, const char* msg, size_t n, struct timespec* ts)
+{
+    int ret;
+    shared_buf_t* buf;
+    if(l == NULL || msg == NULL)
+    {
+        errno = EINVAL;
+        return;
+    }
+    buf = (shared_buf_t*)real_malloc(sizeof(shared_buf_t));
+    ret = shared_buf_init(buf, PTHREAD_PROCESS_SHARED);
+    ret = write_with_timestamp(buf, msg, ret, ts);
+    push(&l->q, buf);
 }

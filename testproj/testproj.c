@@ -6,7 +6,7 @@
 
 int main(int argc, char** argv)
 {
-    int fd = open("testfile", O_CREAT);
+    int fd = open("testfile", O_CREAT | O_RDWR, 0755);
     ssize_t ret = write(fd, "This is a test string", 22);
     char* buf = (char*)malloc(23);
     memset(buf, 0, 23);

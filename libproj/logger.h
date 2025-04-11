@@ -20,4 +20,7 @@ int listen_for_messages(logger_t* l);
 
 int logger_destroy(logger_t* l);
 
+/* Stupid name because of math.h */
+void log_write(logger_t* l, const char* msg, size_t n, struct timespec* ts);
+
 #endif /* LOGGER_H */

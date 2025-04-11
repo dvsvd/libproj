@@ -5,24 +5,13 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 int shared_buf_init(shared_buf_t* buf, int pshared)
 {
-    int ret;
-    pthread_rwlockattr_t attr;
     if(buf == NULL)
     {
         errno = EINVAL;
-        return -1;
-    }
-    ret = pthread_rwlockattr_init(&attr);
-    if( (ret = pthread_rwlockattr_init(&attr)) ||
-        (ret = pthread_rwlockattr_setpshared(&attr, pshared)) ||
-        (ret = pthread_rwlock_init(&buf->lock, &attr)) ||
-        (ret = pthread_rwlockattr_destroy(&attr))
-    )
-    {
-        errno = ret;
         return -1;
     }
     memset(buf->buf, 0, BUF_SIZE);
@@ -32,69 +21,16 @@ int shared_buf_init(shared_buf_t* buf, int pshared)
 
 int shared_buf_destroy(shared_buf_t* buf)
 {
-    int ret;
     if(buf == NULL)
     {
         errno = EINVAL;
         return -1;
     }
-    if((ret = pthread_rwlock_rdlock(&buf->lock)) ||
-       (ret = pthread_rwlock_destroy(&buf->lock))
-    )
-    {
-        errno = ret;
-        return -1;
-    }
     return 0;
-}
-
-ssize_t shared_buf_write_pos(shared_buf_t* buf, size_t pos, const void* src, size_t n)
-{
-    int ret;
-    ssize_t avail = BUF_SIZE - pos; /* Bytes available */
-    ssize_t diff;
-    if(buf == NULL || src == NULL || pos >= BUF_SIZE || n > avail)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    if(buf->buf == src)
-    {
-        return 0;
-    }
-    ret = pthread_rwlock_wrlock(&buf->lock);
-    if(ret)
-    {
-        errno = ret;
-        return -1;
-    }
-    /* Prevent 0-valued gaps */
-    if(pos - buf->count > 1)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    /* The function will not fail if there's not enough space in buffer;
-     * it'll copy as many bytes as it can */
-    n = MIN(avail, n);
-    /* Update count if neccesary */
-    if(pos + n > buf->count)
-    {
-        buf->count = pos + n;
-    }
-    memcpy(buf->buf + pos, src, n);
-    ret = pthread_rwlock_unlock(&buf->lock);
-    if(ret)
-    {
-        errno = ret;
-        return -1;
-    }
-    return n;
 }
 
 ssize_t shared_buf_write(shared_buf_t* buf, const void* src, size_t n)
 {
-    ssize_t ret;
     size_t avail, diff;
     if(buf == NULL || src == NULL)
     {
@@ -104,12 +40,6 @@ ssize_t shared_buf_write(shared_buf_t* buf, const void* src, size_t n)
     if(buf->buf == src)
     {
         return 0;
-    }
-    ret = pthread_rwlock_wrlock(&buf->lock);
-    if(ret)
-    {
-        errno = ret;
-        return -1;
     }
     /* The function will not fail if there's not enough space in buffer;
      * it'll copy as many bytes as it can */
@@ -122,18 +52,11 @@ ssize_t shared_buf_write(shared_buf_t* buf, const void* src, size_t n)
         /* Zero leftovers */
         memset(buf->buf + buf->count, 0, diff);
     }
-    ret = pthread_rwlock_unlock(&buf->lock);
-    if(ret)
-    {
-        errno = ret;
-        return -1;
-    }
     return n;
 }
 
 ssize_t shared_buf_append(shared_buf_t* buf, const void* src, size_t n)
 {
-    ssize_t ret;
     size_t avail, diff;
     if(buf == NULL || src == NULL)
     {
@@ -143,12 +66,6 @@ ssize_t shared_buf_append(shared_buf_t* buf, const void* src, size_t n)
     if(buf->buf == src)
     {
         return 0;
-    }
-    ret = pthread_rwlock_wrlock(&buf->lock);
-    if(ret)
-    {
-        errno = ret;
-        return -1;
     }
     /* The function will not fail if there's not enough space in buffer;
      * it'll copy as many bytes as it can */
@@ -161,18 +78,11 @@ ssize_t shared_buf_append(shared_buf_t* buf, const void* src, size_t n)
     n = MIN(avail, n);
     memcpy(buf->buf + buf->count, src, n);
     buf->count += n;
-    ret = pthread_rwlock_unlock(&buf->lock);
-    if(ret)
-    {
-        errno = ret;
-        return -1;
-    }
     return n;
 }
 
 ssize_t shared_buf_read(const shared_buf_t* buf, void* dst, size_t n)
 {
-    int ret;
     if(buf == NULL || dst == NULL)
     {
         errno = EINVAL;
@@ -182,19 +92,41 @@ ssize_t shared_buf_read(const shared_buf_t* buf, void* dst, size_t n)
     {
         return 0;
     }
-    ret = pthread_rwlock_rdlock(&buf->lock);
-    if(ret)
-    {
-        errno = ret;
-        return -1;
-    }
     n = MIN(buf->count, n);
-    memmove(dst, buf->buf, n);
-    ret = pthread_rwlock_unlock(&buf->lock);
-    if(ret)
+    memcpy(dst, buf->buf, n);
+    return n;
+}
+
+int write_with_timestamp(shared_buf_t* buf, const void* src, size_t n, struct timespec* ts)
+{
+    int ret;
+    int msecs;
+    size_t tmsize; // size of the timestamp in the buffer
+    //struct timespec ts = {0};
+    struct tm gt = {0};
+    char databuf[100] = {0};
+    // ret = timespec_get(ts, TIME_UTC);
+    // if(ret == 0)
+    // {
+    //     errno = ENOMSG;
+    //     return -1;
+    // }
+    localtime_r(&ts->tv_sec, &gt);
+    msecs = ts->tv_nsec / 1000000L;
+    tmsize = strftime(databuf, 100, "[%F %T.", &gt);
+    if(tmsize == 0)
     {
-        errno = ret;
+        errno = ENOMEM;
         return -1;
     }
-    return n;
+    ret = sprintf(databuf + tmsize, "%03d] ", msecs);
+    if(ret < 0)
+    {
+        errno = ENOMSG;
+        return -1;
+    }
+    tmsize += ret;
+    ret = shared_buf_write(buf, databuf, tmsize);
+    ret = shared_buf_append(buf, src, n);
+    return 0;
 }
