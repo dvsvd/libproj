@@ -1,9 +1,9 @@
 #include "memfcn.h"
-#include "shared_buf.h"
+#include "buf_queue.h"
 #include <time.h>
 
-/* Library internal shared buf */
-extern shared_buf_t lib_shared_buf;
+/* Library internal shared buf queue */
+extern buf_queue_t q;
 
 malloc_t real_malloc;
 free_t real_free;
@@ -11,6 +11,7 @@ realloc_t real_realloc;
 
 void* malloc(size_t size)
 {
+    
     return real_malloc(size);
 }
 

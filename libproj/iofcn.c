@@ -3,11 +3,11 @@
 #include <time.h>
 #include <stdarg.h>
 
-static open_t real_open;
-static close_t real_close;
-static lseek_t real_lseek;
-static read_t real_read;
-static write_t real_write;
+open_t real_open;
+close_t real_close;
+lseek_t real_lseek;
+read_t real_read;
+write_t real_write;
 
 /* Library internal shared buf */
 extern shared_buf_t lib_shared_buf;

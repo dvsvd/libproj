@@ -1,10 +1,6 @@
 #include "buf_queue.h"
 #include "memfcn.h"
 
-extern malloc_t real_malloc;
-extern free_t real_free;
-extern realloc_t real_realloc;
-
 int buf_queue_init(buf_queue_t *q, int pshared) {
     int ret;
     pthread_condattr_t ca;

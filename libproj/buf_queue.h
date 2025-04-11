@@ -23,6 +23,8 @@ int buf_queue_init(buf_queue_t *q, int pshared);
 
 int push(buf_queue_t *q, shared_buf_t* data);
 
+/*  Returns pointer to the data of the front element and pops it.
+*   The caller is responsible for clearing out the returned data */
 shared_buf_t* pop(buf_queue_t *q);
 
 int buf_queue_destroy(buf_queue_t *q);

@@ -2,24 +2,21 @@
 #include "buf_queue.h"
 #include "utility.h"
 #include "memfcn.h"
+#include "iofcn.h"
+#include "logger.h"
 #include <time.h>
 #include <errno.h>
 #include <threads.h>
 #include <stdio.h>
 #include <string.h>
 
-/* Library internal shared buf queue */
-buf_queue_t lib_shared_q;
-
-extern malloc_t real_malloc;
-extern free_t real_free;
-extern realloc_t real_realloc;
+/* Library internal logger */
+logger_t logger;
 
 __attribute__((constructor)) static void setup(void)
 {
     char* msg;
-    /* Initialize library shared buf */
-    buf_queue_init(&lib_shared_q, PTHREAD_PROCESS_SHARED);
+    int fd, ret;
     real_malloc = dlsym(RTLD_NEXT, "malloc");
     msg = dlerror();
     if(msg)
@@ -37,6 +34,11 @@ __attribute__((constructor)) static void setup(void)
     if(msg)
     {
         fprintf(stderr, msg);
+    }
+    ret = logger_init(&logger, "log.txt");
+    if(ret == -1)
+    {
+        perror("logger_init() failed: ");
     }
 }
 
@@ -76,6 +78,5 @@ int write_with_timestamp(shared_buf_t* buf, const void* src, size_t n)
 
 __attribute__((destructor)) static void deinit(void)
 {
-    /* Deinitialize library shared buf */
-    buf_queue_destroy(&lib_shared_q);
+    
 }
