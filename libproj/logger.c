@@ -78,16 +78,8 @@ void log_write(logger_t* l, const char* msg, size_t n, struct timespec* ts)
     push(&l->q, buf);
 }
 
-//TODO переделать логгер на обычный fd
-
 logger_t* get_logger()
 {
-    static int is_init = 0;
-    int ret;
-    if(!is_init)
-    {
-        is_init = 1;
-        ret = logger_init(&logger, "log.txt");
-    }
-    return &logger;
+    logger_t* p = &logger;
+    return p;
 }
