@@ -2,6 +2,9 @@
 #include "utility.h"
 #include "memfcn.h"
 
+/* Library internal logger */
+logger_t logger;
+
 int logger_init(logger_t* l, const char* pathname)
 {
     int fd, ret;
@@ -73,4 +76,18 @@ void log_write(logger_t* l, const char* msg, size_t n, struct timespec* ts)
     ret = shared_buf_init(buf, PTHREAD_PROCESS_SHARED);
     ret = write_with_timestamp(buf, msg, ret, ts);
     push(&l->q, buf);
+}
+
+//TODO переделать логгер на обычный fd
+
+logger_t* get_logger()
+{
+    static int is_init = 0;
+    int ret;
+    if(!is_init)
+    {
+        is_init = 1;
+        ret = logger_init(&logger, "log.txt");
+    }
+    return &logger;
 }

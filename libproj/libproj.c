@@ -6,18 +6,6 @@
 #include "logger.h"
 #include <errno.h>
 
-/* Library internal logger */
-logger_t* logger;
-logger_t* get_logger()
-{
-    //static logger_t logger;
-    if(!logger)
-    {
-        logger = (logger_t*)real_malloc(sizeof(logger_t));
-    }
-    return logger;
-}
-
 __attribute__((constructor)) static void setup(void)
 {
     char* msg;
@@ -72,7 +60,7 @@ __attribute__((constructor)) static void setup(void)
         //fprintf(stderr, msg);
     }
     //logger = (logger_t*)real_malloc(sizeof(logger_t));
-    ret = logger_init(get_logger(), "log.txt");
+    //logger = &real_logger;
     if(ret == -1)
     {
         //perror("logger_init() failed: ");

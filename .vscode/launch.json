@@ -9,6 +9,7 @@
             "name" : "C GDB Debug",
             "type": "cppdbg",
             "request": "launch",
+            "targetArchitecture": "x64",
             "program" : "${workspaceFolder}/build/testproj/testprojd",
             "cwd" : "${workspaceFolder}/build",
             "MIMode": "gdb",

@@ -8,7 +8,7 @@ set_target_properties(${LIBRARY_NAME} PROPERTIES
     C_STANDARD_REQUIRED ON
 )
 
-target_compile_options(${LIBRARY_NAME} PRIVATE "-pthread")
+target_compile_options(${LIBRARY_NAME} PRIVATE "-pthread" "-m64")
 
 target_sources(${LIBRARY_NAME} PRIVATE libproj.c iofcn.h iofcn.c memfcn.h memfcn.c
 shared_buf.h shared_buf.c utility.h buf_queue.h buf_queue.c logger.h logger.c)

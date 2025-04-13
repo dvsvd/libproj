@@ -8,6 +8,6 @@ set_target_properties(${APP_NAME} PROPERTIES
     C_STANDARD_REQUIRED ON
 )
 
-target_compile_options(${APP_NAME} PRIVATE "-pthread")
+target_compile_options(${APP_NAME} PRIVATE "-pthread" "-m64")
 
 target_sources(${APP_NAME} PRIVATE testproj.c)

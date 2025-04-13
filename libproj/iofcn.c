@@ -14,9 +14,6 @@ lseek_t real_lseek;
 read_t real_read;
 write_t real_write;
 
-/* Library internal shared buf */
-extern shared_buf_t lib_shared_buf;
-
 const char* whence_text(int whence)
 {
     switch (whence)
