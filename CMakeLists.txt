@@ -6,3 +6,4 @@ set(CMAKE_DEBUG_POSTFIX d)
 
 add_subdirectory ("libproj")
 add_subdirectory ("testproj")
+add_subdirectory("daemon")

@@ -14,7 +14,7 @@ extern malloc_t real_malloc;
 extern free_t real_free;
 extern realloc_t real_realloc;
 
-extern atomic_bool is_default;
+//extern atomic_bool is_default;
 
 void* malloc(size_t size);
 void free(void* ptr);

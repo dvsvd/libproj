@@ -9,7 +9,7 @@
 malloc_t real_malloc;
 free_t real_free;
 realloc_t real_realloc;
-atomic_bool is_default = ATOMIC_VAR_INIT(!!1); /* Default memory functions behaviour flag */
+//atomic_bool is_default = ATOMIC_VAR_INIT(!!1); /* Default memory functions behaviour flag */
 
 /* Library internal get_logger() */
 //logger_t* get_logger();

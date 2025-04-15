@@ -12,7 +12,7 @@ typedef struct
     thrd_t t;
 } logger_t;
 
-extern logger_t logger;
+//extern logger_t logger;
 
 int logger_init(logger_t* l, const char* pathname);
 

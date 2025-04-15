@@ -2,9 +2,6 @@
 #include "utility.h"
 #include "memfcn.h"
 
-/* Library internal logger */
-logger_t logger;
-
 int logger_init(logger_t* l, const char* pathname)
 {
     int fd, ret;
@@ -80,6 +77,5 @@ void log_write(logger_t* l, const char* msg, size_t n, struct timespec* ts)
 
 logger_t* get_logger()
 {
-    logger_t* p = &logger;
-    return p;
+    return NULL;
 }
