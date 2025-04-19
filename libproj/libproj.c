@@ -1,24 +1,36 @@
 #define _GNU_SOURCE
-#include "buf_queue.h"
 #include "utility.h"
 #include "memfcn.h"
 #include "iofcn.h"
-#include "logger.h"
 #include <errno.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <stdatomic.h>
-
-#define SHMEM_NAME "/4B4A2572-E94D-4448-B52C-509352C4AC3D"
+#include <stdatomic.h> 
+#include <sys/stat.h>
+#include <mqueue.h>
 
 __attribute__((constructor)) static void setup(void)
 {
     char* msg;
-    int shmfd;
+    mqd_t mqfd, ioqfd;
     int ret;
-    volatile atomic_bool* is_default;
-    logger_t* loggermem;
+    real_malloc = dlsym(RTLD_NEXT, "malloc");
+    msg = dlerror();
+    if(msg)
+    {
+        fprintf(stderr, msg);
+    }
+    real_free = dlsym(RTLD_NEXT, "free");
+    msg = dlerror();
+    if(msg)
+    {
+        fprintf(stderr, msg);
+    }
+    real_realloc = dlsym(RTLD_NEXT, "realloc");
+    msg = dlerror();
+    if(msg)
+    {
+        fprintf(stderr, msg);
+    }
     real_open = dlsym(RTLD_NEXT, "open");
     msg = dlerror();
     if(msg)
@@ -54,37 +66,43 @@ __attribute__((constructor)) static void setup(void)
         fprintf(stderr, msg);
         return;
     }
-    shmfd = shm_open(SHMEM_NAME, O_RDWR | O_CREAT, 0600);
-    if(shmfd == -1)
-    {
-        perror("shm_open() failed: ");
-        return;
-    }
-    if(ftruncate(shmfd, sizeof(logger_t)) == -1)
-    {
-        perror("ftruncate() failed: ");
-        return;
-    }
-    /* Allocate shared memory for the message queue */
-    loggermem = (logger_t*)mmap(NULL, sizeof(logger_t) + sizeof(atomic_bool),
-    PROT_READ | PROT_WRITE, MAP_SHARED | MAP_32BIT, shmfd, 0);
-    if(loggermem == MAP_FAILED)
-    {
-        perror("mmap() failed: ");
-        return;
-    }
-    if(logger_init(loggermem, "log.txt") == -1)
-    {
-        perror("logger_init() failed: ");
-    }
     is_default = !!0;
+}
+
+mqd_t get_mem_mq(void)
+{
+    static mqd_t fd;
+    static _Bool is_init = !!0;
+    struct mq_attr a = {0};
+    a.mq_maxmsg = 512;
+    a.mq_msgsize = MSG_SIZE;
+    if(!is_init)
+    {
+        fd = mq_open(MEM_MQ_NAME, O_WRONLY | O_CREAT, 0600, &a);
+        is_init = !!1;
+    }
+    return fd;
+}
+
+mqd_t get_io_mq(void)
+{
+    static mqd_t fd;
+    static _Bool is_init = !!0;
+    struct mq_attr a = {0};
+    a.mq_maxmsg = 512;
+    a.mq_msgsize = BUF_SIZE;
+    if(!is_init)
+    {
+        fd = mq_open(IO_MQ_NAME, O_WRONLY | O_CREAT, 0600, &a);
+        is_init = !!1;
+    }
+    return fd;
 }
 
 __attribute__((destructor)) static void deinit(void)
 {
-    if(shm_unlink(SHMEM_NAME) == -1)
+    if(mq_unlink(MEM_MQ_NAME) == -1 || mq_unlink(IO_MQ_NAME) == -1)
     {
         perror("shm_unlink() failed: ");
     }
-    logger_destroy(get_logger());
 }
