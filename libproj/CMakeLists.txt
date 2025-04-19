@@ -11,4 +11,4 @@ set_target_properties(${LIBRARY_NAME} PROPERTIES
 target_compile_options(${LIBRARY_NAME} PRIVATE "-pthread" "-m64")
 #target_include_directories(${LIBRARY_NAME} PRIVATE ${CMAKE_SOURCE_DIR})
 
-target_sources(${LIBRARY_NAME} PRIVATE libproj.c iofcn.h iofcn.c memfcn.h memfcn.c msg_buf.h msg_buf.c)
+target_sources(${LIBRARY_NAME} PRIVATE libproj.c iofcn.h iofcn.c memfcn.h memfcn.c msg_buf.h)

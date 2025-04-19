@@ -6,21 +6,6 @@
 #include <dlfcn.h>
 #include <stdatomic.h>
 
-typedef struct {
-    size_t size;
-    void* addr;
-} malloc_msg_t;
-
-typedef struct {
-    void* addr;
-} free_msg_t;
-
-typedef struct {
-    size_t size;
-    void* cur_addr;
-    void* alloc_addr;
-} realloc_msg_t;
-
 typedef void* (*malloc_t)(size_t size);
 typedef void (*free_t)(void*);
 typedef void* (*realloc_t)(void*, size_t);

@@ -7,6 +7,29 @@
 #include <string.h>
 #include <errno.h>
 
+/*
+    ret = snprintf(msg, MSG_SIZE, "malloc() called: bytes requested: %d, allocated address: %#0\n" PRIXPTR, size, (uintptr_t)tmp);
+
+    ret = snprintf(msg, MSG_SIZE, "free() called: address: %#0\n" PRIXPTR, (uintptr_t)ptr);
+
+    ret = snprintf(msg, MSG_SIZE, "realloc() called: bytes requested: %d, current address: %#0"PRIXPTR
+        ", allocated address: %#0\n" PRIXPTR, size, (uintptr_t)ptr, (uintptr_t)tmp);
+
+    ret = snprintf(msg, MSG_SIZE, "open() called: filename: %s, flags: %#0X, "
+                "fd: %d\n", pathname, flags, tmp);
+
+    ret = snprintf(msg, MSG_SIZE, "close() called: fd: %d, return code: %d\n", fd, tmp);
+
+    ret = snprintf(msg, MSG_SIZE, "lseek() called: filename: %d, requested offset: %d, "
+                "whence: %s, resulted offset: %d\n", fd, offset, whence_text(whence), tmp);
+
+    ret = snprintf(msg, MSG_SIZE, "lseek() called: fd: %d, buf pointer: %#0"PRIXPTR
+                ", count: %d, bytes read: %d\n", fd, (uintptr_t)buf, count, tmp);
+                
+    ret = snprintf(msg, MSG_SIZE, "lseek() called: fd: %d, buf pointer: %#0"PRIXPTR
+    ", count: %d, bytes written: %d\n", fd, (uintptr_t)buf, count, tmp);
+*/
+
 const char* whence_text(int whence)
 {
     switch (whence)

@@ -6,33 +6,6 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <limits.h>
-
-typedef struct {
-    int flags;
-    int fd;
-    size_t pathlen;
-    char pathname[PATH_MAX];
-} open_msg_t;
-
-typedef struct {
-    int ret;
-    int fd;
-} close_msg_t;
-
-typedef struct {
-    off_t new_pos;
-    off_t offset;
-    int fd;
-    int whence;
-} lseek_msg_t;
-
-typedef struct {
-    size_t count;
-    ssize_t bytes_transmitted;
-    void* buf_ptr;
-    int fd;
-} rw_msg_t;
 
 typedef int (*open_t)(const char*, int, ...);
 typedef int (*close_t)(int);

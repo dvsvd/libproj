@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "utility.h"
+#include "msg_buf.h"
 #include "memfcn.h"
 #include "iofcn.h"
 #include <errno.h>
@@ -75,7 +76,7 @@ mqd_t get_mem_mq(void)
     static _Bool is_init = !!0;
     struct mq_attr a = {0};
     a.mq_maxmsg = 512;
-    a.mq_msgsize = MSG_SIZE;
+    a.mq_msgsize = sizeof(msg_t);
     if(!is_init)
     {
         fd = mq_open(MEM_MQ_NAME, O_WRONLY | O_CREAT, 0600, &a);
@@ -90,7 +91,7 @@ mqd_t get_io_mq(void)
     static _Bool is_init = !!0;
     struct mq_attr a = {0};
     a.mq_maxmsg = 512;
-    a.mq_msgsize = BUF_SIZE;
+    a.mq_msgsize = sizeof(msg_t);
     if(!is_init)
     {
         fd = mq_open(IO_MQ_NAME, O_WRONLY | O_CREAT, 0600, &a);
