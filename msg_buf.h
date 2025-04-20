@@ -34,7 +34,6 @@ typedef struct {
 typedef struct {
     int flags;
     int fd;
-    size_t pathlen;
     char pathname[PATH_MAX];
 } open_msg_t;
 
@@ -74,7 +73,6 @@ typedef struct {
 typedef struct {
     int fn_id;
     struct timespec ts;
-    //size_t count;
     unsigned char payload[PAYLOAD_SIZE];
 } msg_t;
 

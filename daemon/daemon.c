@@ -1,4 +1,5 @@
 #include "utility.h"
+#include "msg_buf.h"
 #include <stdlib.h>
 #include <mqueue.h>
 #include <unistd.h>
@@ -6,29 +7,23 @@
 #include <time.h>
 #include <string.h>
 #include <errno.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <signal.h>
 
-/*
-    ret = snprintf(msg, MSG_SIZE, "malloc() called: bytes requested: %d, allocated address: %#0\n" PRIXPTR, size, (uintptr_t)tmp);
+// add-symbol-file /home/a/repos/libproj/build/libproj/liblibprojd.so
 
-    ret = snprintf(msg, MSG_SIZE, "free() called: address: %#0\n" PRIXPTR, (uintptr_t)ptr);
+static void exit_handler(void)
+{
 
-    ret = snprintf(msg, MSG_SIZE, "realloc() called: bytes requested: %d, current address: %#0"PRIXPTR
-        ", allocated address: %#0\n" PRIXPTR, size, (uintptr_t)ptr, (uintptr_t)tmp);
+}
 
-    ret = snprintf(msg, MSG_SIZE, "open() called: filename: %s, flags: %#0X, "
-                "fd: %d\n", pathname, flags, tmp);
-
-    ret = snprintf(msg, MSG_SIZE, "close() called: fd: %d, return code: %d\n", fd, tmp);
-
-    ret = snprintf(msg, MSG_SIZE, "lseek() called: filename: %d, requested offset: %d, "
-                "whence: %s, resulted offset: %d\n", fd, offset, whence_text(whence), tmp);
-
-    ret = snprintf(msg, MSG_SIZE, "lseek() called: fd: %d, buf pointer: %#0"PRIXPTR
-                ", count: %d, bytes read: %d\n", fd, (uintptr_t)buf, count, tmp);
-                
-    ret = snprintf(msg, MSG_SIZE, "lseek() called: fd: %d, buf pointer: %#0"PRIXPTR
-    ", count: %d, bytes written: %d\n", fd, (uintptr_t)buf, count, tmp);
-*/
+static void handler(int sig, siginfo_t* info, void* ucontext)
+{
+    FILE* logfile = (FILE*)ucontext;
+    fflush(logfile);
+    fclose(logfile);
+}
 
 const char* whence_text(int whence)
 {
@@ -45,32 +40,87 @@ const char* whence_text(int whence)
     }
 }
 
-//TODO write with timestamp
-
-int write_with_timestamp(FILE* file, const char* src, size_t n, struct timespec* ts)
+int write_msg(FILE* file, const msg_t* msg)
 {
-    const size_t timestamp_size = 100;
+    int ret;
+    switch (msg->fn_id)
+    {
+    case MALLOC:
+    {
+        const malloc_msg_t* m = (const malloc_msg_t*)msg->payload;
+        ret = fprintf(file, "malloc() called: bytes requested: %ld, allocated address: %#0"PRIXPTR"\n", m->size, (uintptr_t)m->addr);
+        break;
+    }
+    case FREE:
+    {
+        const free_msg_t* m = (const free_msg_t*)msg->payload;
+        ret = fprintf(file, "free() called: address: %#0"PRIXPTR"\n", (uintptr_t)m->addr);
+        break;
+    }
+    case REALLOC:
+    {
+        const realloc_msg_t* m = (const realloc_msg_t*)msg->payload;
+        ret = fprintf(file, "realloc() called: bytes requested: %ld, current address: %#0"PRIXPTR
+            ", allocated address: %#0"PRIXPTR"\n", m->size, (uintptr_t)m->cur_addr, (uintptr_t)m->alloc_addr);
+        break;
+    }
+    case OPEN:
+    {
+        const open_msg_t* m = (const open_msg_t*)msg->payload;
+        ret = fprintf(file, "open() called: filename: %s, flags: %#0"PRIX32", "
+            "fd: %d\n", m->pathname, m->flags, m->fd);
+        break;
+    }
+    case CLOSE:
+    {
+        const close_msg_t* m = (const close_msg_t*)msg->payload;
+        ret = fprintf(file, "close() called: fd: %d, return code: %d\n", m->fd, m->ret);
+        break;
+    }
+    case LSEEK:
+    {
+        const lseek_msg_t* m = (const lseek_msg_t*)msg->payload;
+        ret = fprintf(file, "lseek() called: fd: %d, requested offset: %ld, "
+            "whence: %s, resulted offset: %ld\n", m->fd, m->offset, whence_text(m->whence), m->new_pos);
+        break;
+    }
+    case READ:
+    {
+        const rw_msg_t* m = (const rw_msg_t*)msg->payload;
+        ret = fprintf(file, "read() called: fd: %d, buffer pointer: %#0"PRIXPTR
+            ", count: %ld, bytes read: %ld\n", m->fd, (uintptr_t)m->buf_ptr, m->count, m->bytes_transmitted);
+        break;
+    }
+    case WRITE:
+    {
+        const rw_msg_t* m = (const rw_msg_t*)msg->payload;
+        ret = fprintf(file, "write() called: fd: %d, buffer pointer: %#0"PRIXPTR
+            ", count: %ld, bytes written: %ld\n", m->fd, (uintptr_t)m->buf_ptr, m->count, m->bytes_transmitted);
+        break;
+    }
+    default:
+        return -1;
+    }
+    return ret;
+}
+
+int write_with_timestamp(FILE* file, const msg_t* msg)
+{
+#define timestamp_size 100
     int ret;
     int msecs;
-    size_t tmsize; // size of the timestamp in the buffer
-    //struct timespec ts = {0};
+    size_t tmsize; /* size of the timestamp in the buffer */
     struct tm gt = {0};
     char timestamp[timestamp_size] = {0};
-    // ret = timespec_get(ts, TIME_UTC);
-    // if(ret == 0)
-    // {
-    //     errno = ENOMSG;
-    //     return -1;
-    // }
-    localtime_r(&ts->tv_sec, &gt);
-    msecs = ts->tv_nsec / 1000000L;
+    localtime_r(&msg->ts.tv_sec, &gt);
+    msecs = msg->ts.tv_nsec / 1000000L;
     tmsize = strftime(timestamp, timestamp_size, "[%F %T.", &gt);
     if(tmsize == 0)
     {
         errno = ENOMEM;
         return -1;
     }
-    ret = sprintf(timestamp + tmsize, "%03d] ", msecs);
+    ret = sprintf(timestamp + tmsize, "%03d]: ", msecs);
     if(ret < 0)
     {
         errno = ENOMSG;
@@ -78,29 +128,43 @@ int write_with_timestamp(FILE* file, const char* src, size_t n, struct timespec*
     }
     tmsize += ret;
     fwrite(timestamp, sizeof(char), tmsize, file);
-    fwrite(src, sizeof(char), n, file);
-    return 0;
+    ret = write_msg(file, msg);
+    return ret;
+#undef timestamp_size
 }
 
 void print_help(void)
 {
     printf("Usage: daemon [options]\n"
         "\t-m: start memory functions daemon (starts I/O functions daemon if omitted)\n"
-        "\t-t <msecs>: specify message queue poll interval (default: 0)\n"
-        "\t-n <name>: log file name (default: \"/var/log/libprojdaemon.log\")\n"
-        "\t--help: print this help message");
+        "\t-t <msecs>: specify message queue poll interval in milliseconds. "
+        "If 0 or omitted, goes into blocking mode\n"
+        "\t-n <name>: log file name (default: \"libprojdaemon-date-time.log\")\n"
+        "\t--help: print this help message\n");
+}
+
+void get_default_name(char* buf, size_t size, _Bool is_mem)
+{
+    time_t t = time(NULL);
+    struct tm lt;
+    localtime_r(&t, &lt);
+    strftime(buf, size, "libprojdaemon-%F-%H-%M-%S-", &lt);
+    strcat(buf, is_mem ? "mem.log" : "io.log");
 }
 
 int main(int argc, char* argv[])
 {
+    int ret;
     _Bool is_mem = !!0; /* Start MEM daemon if true; I/O otherwise */
-    char* filename = "log.txt";
+    char buf[NAME_MAX] = {0};
+    char* filename = buf;
     char opt;
     static mqd_t qfd;
     ssize_t size;
     FILE* logfile;
-    struct timespec ts = {0};
-    char msg[MSG_SIZE] = {0};
+    struct timespec interval_ts;
+    msg_t msg = {0};
+    struct sigaction sa = {0};
     if(argc < 2 || strcmp(argv[1], "--help") == 0)
     {
         print_help();
@@ -114,54 +178,74 @@ int main(int argc, char* argv[])
             is_mem = !!1;
             break;
         case 'n':
-            logfile = optarg;
+            filename = optarg;
             break;
         case 't':
-            ts.tv_sec = atoi(optarg);
+        {
+            int val = atoi(optarg);
+            interval_ts.tv_sec = val / 1000;
+            interval_ts.tv_nsec = (val % 1000) * 1000000;
             break;
+        }
         default:
             print_help();
             return 0;
         }
     }
+    get_default_name(buf, sizeof buf, is_mem);
     if(daemon(0, 0) == -1)
     {
         perror("daemon() failed: ");
         return 1;
     }
+    atexit(exit_handler);
     if((logfile = fopen(filename, "a")) == NULL)
     {
-        perror("fopen() failed: ");
+        perror("fopen() failed in "__FILE__" at line  "LINESTR);
         return 1;
     }
-    if((qfd = mq_open(is_mem ? MEM_MQ_NAME : IO_MQ_NAME, O_RDONLY, 0600)) == -1)
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction = handler;
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
+    if((qfd = mq_open(is_mem ? MEM_MQ_NAME : IO_MQ_NAME, O_RDONLY)) == -1)
     {
-        perror("mq_open() failed: ");
+        perror("mq_open() failed in "__FILE__" at line  "LINESTR);
         fclose(logfile);
         return 1;
     }
     while(1)
     {
-        if(ts.tv_sec != 0 && (size = mq_timedreceive(qfd,  msg, MSG_SIZE, 0, &ts)) == -1)
+        if(interval_ts.tv_sec != 0 || interval_ts.tv_nsec != 0)
         {
-            switch (errno)
+            if((size = mq_timedreceive(qfd,  (char*)&msg, sizeof msg, 0, &interval_ts)) == -1)
             {
-            case ETIMEDOUT:
-                continue;
-            default:
-                perror("mq_timedreceive() failed: ");
-                fclose(logfile);
-                return 1;
+                switch (errno)
+                {
+                case ETIMEDOUT:
+                    continue;
+                default:
+                    perror("mq_timedreceive() failed in "__FILE__" at line  "LINESTR);
+                    fclose(logfile);
+                    return 1;
+                }
             }
         }
-        else if((size = mq_receive(qfd,  msg, MSG_SIZE, 0)) == -1)
+        else if((size = mq_receive(qfd, (char*)&msg, sizeof msg, 0)) == -1)
         {
-            perror("mq_receive() failed: ");
+            perror("mq_receive() failed in "__FILE__" at line  "LINESTR);
             fclose(logfile);
             return 1;
         }
-        fwrite(msg, sizeof(char), size, logfile);
+        ret = write_with_timestamp(logfile, &msg);
+        if(ret == -1)
+        {
+            perror("write_with_timestamp() failed in "__FILE__" at line  "LINESTR);
+            fclose(logfile);
+            return 1;
+        }
     }
+    fflush(logfile);
     fclose(logfile);
     return 0;
 }

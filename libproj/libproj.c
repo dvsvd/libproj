@@ -18,56 +18,62 @@ __attribute__((constructor)) static void setup(void)
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
     }
     real_free = dlsym(RTLD_NEXT, "free");
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
     }
     real_realloc = dlsym(RTLD_NEXT, "realloc");
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
+    }
+    real_perror = dlsym(RTLD_NEXT, "perror");
+    msg = dlerror();
+    if(msg)
+    {
+        fprintf(stderr, "%s\n", msg);
     }
     real_open = dlsym(RTLD_NEXT, "open");
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
         return;
     }
     real_close = dlsym(RTLD_NEXT, "close");
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
         return;
     }
     real_lseek = dlsym(RTLD_NEXT, "lseek");
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
         return;
     }
     real_read = dlsym(RTLD_NEXT, "read");
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
         return;
     }
     real_write = dlsym(RTLD_NEXT, "write");
     msg = dlerror();
     if(msg)
     {
-        fprintf(stderr, msg);
+        fprintf(stderr, "%s\n", msg);
         return;
     }
-    is_default = !!0;
+    //is_default = !!0;
 }
 
 mqd_t get_mem_mq(void)
@@ -75,7 +81,7 @@ mqd_t get_mem_mq(void)
     static mqd_t fd;
     static _Bool is_init = !!0;
     struct mq_attr a = {0};
-    a.mq_maxmsg = 512;
+    a.mq_maxmsg = 10;
     a.mq_msgsize = sizeof(msg_t);
     if(!is_init)
     {
@@ -90,7 +96,7 @@ mqd_t get_io_mq(void)
     static mqd_t fd;
     static _Bool is_init = !!0;
     struct mq_attr a = {0};
-    a.mq_maxmsg = 512;
+    a.mq_maxmsg = 10;
     a.mq_msgsize = sizeof(msg_t);
     if(!is_init)
     {
@@ -104,6 +110,6 @@ __attribute__((destructor)) static void deinit(void)
 {
     if(mq_unlink(MEM_MQ_NAME) == -1 || mq_unlink(IO_MQ_NAME) == -1)
     {
-        perror("shm_unlink() failed: ");
+        perror("shm_unlink() failed in "__FILE__" at line  "LINESTR);
     }
 }

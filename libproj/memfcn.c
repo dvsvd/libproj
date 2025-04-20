@@ -11,14 +11,19 @@
 malloc_t real_malloc;
 free_t real_free;
 realloc_t real_realloc;
+perror_t real_perror;
 atomic_bool is_default = ATOMIC_VAR_INIT(!!1); /* Default memory functions behaviour flag */
 
-/* Library internal get_logger() */
-//logger_t* get_logger();
+void perror(const char* s)
+{
+    is_default = !!1;
+    real_perror(s);
+    is_default = !!0;
+}
 
 void* malloc(size_t size)
 {
-    mqd_t fd;
+    mqd_t qfd;
     int ret;
     void* tmp;
     int err; /* real errno */
@@ -29,9 +34,9 @@ void* malloc(size_t size)
     {
         return real_malloc(size);
     }
-    if((fd = get_mem_mq()) == -1)
+    if((qfd = get_mem_mq()) == -1)
     {
-        perror("get_mem_mq() failed: ");
+        perror("get_mem_mq() failed in "__FILE__" at line  "LINESTR);
         //exit(1337);
     }
     tmp = real_malloc(size);
@@ -39,11 +44,11 @@ void* malloc(size_t size)
     m.fn_id = MALLOC;
     msg.size = size;
     msg.addr = tmp;
-    memcpy(m.payload, &msg, sizeof(malloc_msg_t));
-    memset(m.payload + sizeof(malloc_msg_t), 0, sizeof m.payload - sizeof(malloc_msg_t));
-    if(mq_send(fd, &m, sizeof(msg_t), 0) == -1)
+    memcpy(m.payload, &msg, sizeof msg);
+    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed: ");
+        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -52,7 +57,7 @@ void* malloc(size_t size)
 void free(void* ptr)
 {
     int ret;
-    mqd_t fd;
+    mqd_t qfd;
     msg_t m;
     free_msg_t msg;
     timespec_get(&m.ts, TIME_UTC);
@@ -60,25 +65,25 @@ void free(void* ptr)
     {
         return real_free(ptr);
     }
-    if((fd = get_mem_mq()) == -1)
+    if((qfd = get_mem_mq()) == -1)
     {
-        perror("get_mem_mq() failed: ");
+        perror("get_mem_mq() failed in "__FILE__" at line  "LINESTR);
         //exit(1337);
     }
     m.fn_id = FREE;
     msg.addr = ptr;
-    memcpy(m.payload, &msg, sizeof(free_msg_t));
-    memset(m.payload + sizeof(free_msg_t), 0, sizeof m.payload - sizeof(free_msg_t));
-    if(mq_send(fd, &m, sizeof(msg_t), 0) == -1)
+    memcpy(m.payload, &msg, sizeof msg);
+    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed: ");
+        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
     }
     real_free(ptr);
 }
 
 void* realloc(void* ptr, size_t size)
 {
-    mqd_t fd;
+    mqd_t qfd;
     void* tmp;
     int err; /* real errno */
     int ret;
@@ -89,10 +94,10 @@ void* realloc(void* ptr, size_t size)
     {
         return real_realloc(ptr, size);
     }
-    if((fd = get_mem_mq()) == -1)
+    if((qfd = get_mem_mq()) == -1)
     {
-        perror("get_mem_mq() failed: ");
-        exit(1337);
+        perror("get_mem_mq() failed in "__FILE__" at line  "LINESTR);
+        //exit(1337);
     }
     tmp = real_realloc(ptr, size);
     err = errno;
@@ -100,11 +105,11 @@ void* realloc(void* ptr, size_t size)
     msg.cur_addr = ptr;
     msg.alloc_addr = tmp;
     msg.size = size;
-    memcpy(m.payload, &msg, sizeof(realloc_msg_t));
-    memset(m.payload + sizeof(realloc_msg_t), 0, sizeof m.payload - sizeof(realloc_msg_t));
-    if(mq_send(fd, &m, sizeof(msg_t), 0) == -1)
+    memcpy(m.payload, &msg, sizeof msg);
+    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed: ");
+        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;
