@@ -10,19 +10,69 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <sys/stat.h>
+#include <syslog.h>
+#include <stdatomic.h>
 
 // add-symbol-file /home/a/repos/libproj/build/libproj/liblibprojd.so
 
-static void exit_handler(void)
-{
+atomic_bool is_stopped = ATOMIC_VAR_INIT(!!0);
 
+static void skeleton_daemon()
+{
+    pid_t pid;
+
+    /* Fork off the parent process */
+    pid = fork();
+
+    /* An error occurred */
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+
+    /* Success: Let the parent terminate */
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
+    /* On success: The child process becomes session leader */
+    if (setsid() < 0)
+        exit(EXIT_FAILURE);
+
+    /* Catch, ignore and handle signals */
+    signal(SIGCHLD, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
+
+    /* Fork off for the second time*/
+    pid = fork();
+
+    /* An error occurred */
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+
+    /* Success: Let the parent terminate */
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
+    /* Set new file permissions */
+    umask(0);
+
+    /* Change the working directory to the root directory */
+    /* or another appropriated directory */
+    //chdir(dir == NULL ? "/" : dir);
+
+    /* Close all open file descriptors */
+    int x;
+    for (x = sysconf(_SC_OPEN_MAX); x>=0; x--)
+    {
+        close (x);
+    }
+
+    /* Open the log file */
+    openlog ("logdaemon", LOG_PID, LOG_DAEMON);
 }
 
-static void handler(int sig, siginfo_t* info, void* ucontext)
+static void handler(int)
 {
-    FILE* logfile = (FILE*)ucontext;
-    fflush(logfile);
-    fclose(logfile);
+    is_stopped = !!1;
 }
 
 const char* whence_text(int whence)
@@ -155,21 +205,28 @@ void get_default_name(char* buf, size_t size, _Bool is_mem)
 int main(int argc, char* argv[])
 {
     int ret;
-    _Bool is_mem = !!0; /* Start MEM daemon if true; I/O otherwise */
+    _Bool is_mem = !!0; /* Start MEM daemon if true; I/O daemon otherwise */
     char buf[NAME_MAX] = {0};
-    char* filename = buf;
+    char* filename = NULL;
+    char* que_name;
+    char* daemon_type;
     char opt;
     static mqd_t qfd;
     ssize_t size;
     FILE* logfile;
-    struct timespec interval_ts;
+    time_t interval;
     msg_t msg = {0};
     struct sigaction sa = {0};
+    struct mq_attr a = {0};
+    int mqflags = O_RDONLY | O_CREAT;
+
     if(argc < 2 || strcmp(argv[1], "--help") == 0)
     {
         print_help();
         return 0;
     }
+
+    /* Parse options */
     while((opt = getopt(argc, argv, "mt:n:")) != -1)
     {
         switch (opt)
@@ -181,71 +238,91 @@ int main(int argc, char* argv[])
             filename = optarg;
             break;
         case 't':
-        {
-            int val = atoi(optarg);
-            interval_ts.tv_sec = val / 1000;
-            interval_ts.tv_nsec = (val % 1000) * 1000000;
+            /* Multiply by 1000 to get interval in usecs */
+            interval = atoi(optarg) * 1000;
             break;
-        }
         default:
             print_help();
             return 0;
         }
     }
-    get_default_name(buf, sizeof buf, is_mem);
-    if(daemon(0, 0) == -1)
+
+    /* Initialize log file name */
+    daemon_type = is_mem ? "MEM" : "I/O";
+    if(filename == NULL)
     {
-        perror("daemon() failed: ");
-        return 1;
+        get_default_name(buf, sizeof buf, is_mem);
+        filename = buf;
     }
-    atexit(exit_handler);
-    if((logfile = fopen(filename, "a")) == NULL)
+
+    /* Daemonize */
+    skeleton_daemon();
+
+    if((ret = open(filename, O_CREAT | O_APPEND | O_WRONLY | O_EXCL, 0666)) == -1)
     {
-        perror("fopen() failed in "__FILE__" at line  "LINESTR);
-        return 1;
+        syslog(LOG_ERR, "open() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
+        goto cleanup_base;
     }
-    sa.sa_flags = SA_SIGINFO;
-    sa.sa_sigaction = handler;
+    if((logfile = fdopen(ret, "a")) == NULL)
+    {
+        syslog(LOG_ERR, "fdopen() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
+        goto cleanup_base;
+    }
+
+    /* Set up termination handler */
+    sa.sa_handler = handler;
     sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT, &sa, NULL);
-    if((qfd = mq_open(is_mem ? MEM_MQ_NAME : IO_MQ_NAME, O_RDONLY)) == -1)
+    //sigaction(SIGINT, &sa, NULL);
+
+    /* Set up mq attributes */
+    a.mq_maxmsg = 10;
+    a.mq_msgsize = sizeof(msg_t);
+    que_name = is_mem ? MEM_MQ_NAME : IO_MQ_NAME;
+    if(interval != 0) mqflags |= O_NONBLOCK;
+
+    /* Open mq */
+    mq_unlink(que_name);
+    if((qfd = mq_open(que_name, mqflags, 0666, &a)) == -1)
     {
-        perror("mq_open() failed in "__FILE__" at line  "LINESTR);
-        fclose(logfile);
-        return 1;
+        syslog(LOG_ERR, "mq_open() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
+        goto cleanup_file;
     }
-    while(1)
+
+    /* Begin main loop */
+    while(!is_stopped)
     {
-        if(interval_ts.tv_sec != 0 || interval_ts.tv_nsec != 0)
+        if((size = mq_receive(qfd, (char*)&msg, sizeof msg, 0)) == -1)
         {
-            if((size = mq_timedreceive(qfd,  (char*)&msg, sizeof msg, 0, &interval_ts)) == -1)
+            switch (errno)
             {
-                switch (errno)
-                {
-                case ETIMEDOUT:
-                    continue;
-                default:
-                    perror("mq_timedreceive() failed in "__FILE__" at line  "LINESTR);
-                    fclose(logfile);
-                    return 1;
-                }
+            case EAGAIN:
+                usleep(interval);
+            case EINTR:
+                continue;
+            default:
+                syslog(LOG_ERR, "mq_receive() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
+                goto cleanup_full;
             }
         }
-        else if((size = mq_receive(qfd, (char*)&msg, sizeof msg, 0)) == -1)
+        if(write_with_timestamp(logfile, &msg) == -1)
         {
-            perror("mq_receive() failed in "__FILE__" at line  "LINESTR);
-            fclose(logfile);
-            return 1;
+            syslog(LOG_ERR, "write_with_timestamp() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
+            goto cleanup_full;
         }
-        ret = write_with_timestamp(logfile, &msg);
-        if(ret == -1)
-        {
-            perror("write_with_timestamp() failed in "__FILE__" at line  "LINESTR);
-            fclose(logfile);
-            return 1;
-        }
+        memset((char*)&msg, 0, size);
     }
+
+    /* Perform cleanup */
+cleanup_full:
+    mq_close(qfd);
+    mq_unlink(que_name);
+
+cleanup_file:
     fflush(logfile);
     fclose(logfile);
+
+cleanup_base:
+    syslog(LOG_INFO, "%s daemon (PID: %d) successfully shut down", daemon_type, getpid());
+    closelog();
     return 0;
 }

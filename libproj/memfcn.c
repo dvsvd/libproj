@@ -36,8 +36,7 @@ void* malloc(size_t size)
     }
     if((qfd = get_mem_mq()) == -1)
     {
-        perror("get_mem_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_mem_mq() failed in "__FILE__" at line "LINESTR);
     }
     tmp = real_malloc(size);
     err = errno;
@@ -48,7 +47,7 @@ void* malloc(size_t size)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -67,8 +66,7 @@ void free(void* ptr)
     }
     if((qfd = get_mem_mq()) == -1)
     {
-        perror("get_mem_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_mem_mq() failed in "__FILE__" at line "LINESTR);
     }
     m.fn_id = FREE;
     msg.addr = ptr;
@@ -76,7 +74,7 @@ void free(void* ptr)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     real_free(ptr);
 }
@@ -96,8 +94,8 @@ void* realloc(void* ptr, size_t size)
     }
     if((qfd = get_mem_mq()) == -1)
     {
-        perror("get_mem_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_mem_mq() failed in "__FILE__" at line "LINESTR);
+
     }
     tmp = real_realloc(ptr, size);
     err = errno;
@@ -109,7 +107,7 @@ void* realloc(void* ptr, size_t size)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;

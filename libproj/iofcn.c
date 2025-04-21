@@ -35,8 +35,7 @@ int open(const char* pathname, int flags, ...)
     }
     if((qfd = get_io_mq()) == -1)
     {
-        perror("get_io_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
     }
     tmp = real_open(pathname, flags, mode);
     err = errno;
@@ -50,7 +49,7 @@ int open(const char* pathname, int flags, ...)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -67,8 +66,7 @@ int close(int fd)
     timespec_get(&m.ts, TIME_UTC);
     if((qfd = get_io_mq()) == -1)
     {
-        perror("get_io_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
     }
     msg.fd = fd;
     tmp = real_close(fd);
@@ -79,7 +77,7 @@ int close(int fd)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -96,8 +94,7 @@ off_t lseek(int fd, off_t offset, int whence)
     timespec_get(&m.ts, TIME_UTC);
     if((qfd = get_io_mq()) == -1)
     {
-        perror("get_io_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
     }
     tmp = real_lseek(fd, offset, whence);
     err = errno;
@@ -110,7 +107,7 @@ off_t lseek(int fd, off_t offset, int whence)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -127,8 +124,7 @@ ssize_t read(int fd, void* buf, size_t count)
     timespec_get(&m.ts, TIME_UTC);
     if((qfd = get_io_mq()) == -1)
     {
-        perror("get_io_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
     }
     tmp = real_read(fd, buf, count);
     err = errno;
@@ -141,7 +137,7 @@ ssize_t read(int fd, void* buf, size_t count)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -158,8 +154,7 @@ ssize_t write(int fd, const void* buf, size_t count)
     timespec_get(&m.ts, TIME_UTC);
     if((qfd = get_io_mq()) == -1)
     {
-        perror("get_io_mq() failed in "__FILE__" at line  "LINESTR);
-        //exit(1337);
+        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
     }
     tmp = real_write(fd, buf, count);
     err = errno;
@@ -172,7 +167,7 @@ ssize_t write(int fd, const void* buf, size_t count)
     memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line  "LINESTR);
+        perror("mq_send() failed in "__FILE__" at line "LINESTR);
     }
     errno = err; /* Restore real errno */
     return tmp;

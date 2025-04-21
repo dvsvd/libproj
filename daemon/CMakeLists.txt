@@ -1,4 +1,4 @@
-set(APP_NAME daemon)
+set(APP_NAME logdaemon)
 
 add_executable(${APP_NAME} "")
 set_target_properties(${APP_NAME} PROPERTIES

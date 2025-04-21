@@ -73,7 +73,7 @@ __attribute__((constructor)) static void setup(void)
         fprintf(stderr, "%s\n", msg);
         return;
     }
-    //is_default = !!0;
+    is_default = !!0;
 }
 
 mqd_t get_mem_mq(void)
@@ -108,8 +108,12 @@ mqd_t get_io_mq(void)
 
 __attribute__((destructor)) static void deinit(void)
 {
-    if(mq_unlink(MEM_MQ_NAME) == -1 || mq_unlink(IO_MQ_NAME) == -1)
+    if(mq_unlink(MEM_MQ_NAME) == -1)
     {
-        perror("shm_unlink() failed in "__FILE__" at line  "LINESTR);
+        perror("shm_unlink() failed in "__FILE__" at line "LINESTR);
+    }
+    if(mq_unlink(IO_MQ_NAME) == -1)
+    {
+        perror("shm_unlink() failed in "__FILE__" at line "LINESTR);
     }
 }
