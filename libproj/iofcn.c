@@ -23,7 +23,6 @@ int open(const char* pathname, int flags, ...)
     int ret;
     mqd_t qfd;
     msg_t m;
-    open_msg_t msg;
     size_t pathlen;
     timespec_get(&m.ts, TIME_UTC);
     if(flags & O_CREAT || flags & O_TMPFILE)
@@ -33,23 +32,25 @@ int open(const char* pathname, int flags, ...)
         mode = va_arg(args, mode_t);
         va_end(args);
     }
-    if((qfd = get_io_mq()) == -1)
-    {
-        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
-    }
+    qfd = get_io_mq();
     tmp = real_open(pathname, flags, mode);
     err = errno;
     m.fn_id = OPEN;
-    msg.fd = tmp;
-    msg.flags = flags;
+    m.pid = getpid();
+    m.open_msg.fd = tmp;
+    m.open_msg.flags = flags;
     pathlen = strlen(pathname);
-    memcpy(msg.pathname, pathname, pathlen);
-    memset(msg.pathname + pathlen, 0, sizeof msg.pathname - pathlen);
-    memcpy(m.payload, &msg, sizeof msg);
-    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    memcpy(m.open_msg.pathname, pathname, pathlen);
+    memset(m.open_msg.pathname + pathlen, 0, sizeof m.open_msg.pathname - pathlen);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        switch (errno)
+        {
+        case EBADF:
+            break;
+        default:
+            perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        }
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -62,22 +63,24 @@ int close(int fd)
     int err; /* real errno */
     int ret;
     msg_t m;
-    close_msg_t msg;
     timespec_get(&m.ts, TIME_UTC);
-    if((qfd = get_io_mq()) == -1)
-    {
-        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
-    }
-    msg.fd = fd;
+    qfd = get_io_mq();
+    m.close_msg.fd = fd;
     tmp = real_close(fd);
     err = errno;
     m.fn_id = CLOSE;
-    msg.ret = tmp;
-    memcpy(m.payload, &msg, sizeof msg);
-    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    m.pid = getpid();
+    m.close_msg.ret = tmp;
+    //memset(&m.close_msg + sizeof m.close_msg, 0, sizeof m.payload - sizeof m.close_msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        switch (errno)
+        {
+        case EBADF:
+            break;
+        default:
+            perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        }
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -90,24 +93,26 @@ off_t lseek(int fd, off_t offset, int whence)
     int err; /* real errno */
     int ret;
     msg_t m;
-    lseek_msg_t msg;
     timespec_get(&m.ts, TIME_UTC);
-    if((qfd = get_io_mq()) == -1)
-    {
-        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
-    }
+    qfd = get_io_mq();
     tmp = real_lseek(fd, offset, whence);
     err = errno;
     m.fn_id = LSEEK;
-    msg.fd = fd;
-    msg.offset = offset;
-    msg.whence = whence;
-    msg.new_pos = tmp;
-    memcpy(m.payload, &msg, sizeof msg);
-    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    m.pid = getpid();
+    m.lseek_msg.fd = fd;
+    m.lseek_msg.offset = offset;
+    m.lseek_msg.whence = whence;
+    m.lseek_msg.new_pos = tmp;
+    //memset(&m.lseek_msg + sizeof m.lseek_msg, 0, sizeof m.payload - sizeof m.lseek_msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        switch (errno)
+        {
+        case EBADF:
+            break;
+        default:
+            perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        }
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -120,24 +125,26 @@ ssize_t read(int fd, void* buf, size_t count)
     int err; /* real errno */
     int ret;
     msg_t m;
-    rw_msg_t msg;
     timespec_get(&m.ts, TIME_UTC);
-    if((qfd = get_io_mq()) == -1)
-    {
-        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
-    }
+    qfd = get_io_mq();
     tmp = real_read(fd, buf, count);
     err = errno;
     m.fn_id = READ;
-    msg.fd = fd;
-    msg.buf_ptr = buf;
-    msg.bytes_transmitted = tmp;
-    msg.count = count;
-    memcpy(m.payload, &msg, sizeof msg);
-    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    m.pid = getpid();
+    m.rw_msg.fd = fd;
+    m.rw_msg.buf_ptr = buf;
+    m.rw_msg.bytes_transmitted = tmp;
+    m.rw_msg.count = count;
+    //memset(&m.rw_msg+ sizeof m.rw_msg, 0, sizeof m.payload - sizeof m.rw_msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        switch (errno)
+        {
+        case EBADF:
+            break;
+        default:
+            perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        }
     }
     errno = err; /* Restore real errno */
     return tmp;
@@ -150,24 +157,26 @@ ssize_t write(int fd, const void* buf, size_t count)
     int err; /* real errno */
     int ret;
     msg_t m;
-    rw_msg_t msg;
     timespec_get(&m.ts, TIME_UTC);
-    if((qfd = get_io_mq()) == -1)
-    {
-        perror("get_io_mq() failed in "__FILE__" at line "LINESTR);
-    }
+    qfd = get_io_mq();
     tmp = real_write(fd, buf, count);
     err = errno;
     m.fn_id = WRITE;
-    msg.fd = fd;
-    msg.buf_ptr = (void*)buf;
-    msg.bytes_transmitted = tmp;
-    msg.count = count;
-    memcpy(m.payload, &msg, sizeof msg);
-    memset(m.payload + sizeof msg, 0, sizeof m.payload - sizeof msg);
+    m.pid = getpid();
+    m.rw_msg.fd = fd;
+    m.rw_msg.buf_ptr = (void*)buf;
+    m.rw_msg.bytes_transmitted = tmp;
+    m.rw_msg.count = count;
+    //memset(&m.rw_msg+ sizeof m.rw_msg, 0, sizeof m.payload - sizeof m.rw_msg);
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
-        perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        switch (errno)
+        {
+        case EBADF:
+            break;
+        default:
+            perror("mq_send() failed in "__FILE__" at line "LINESTR);
+        }
     }
     errno = err; /* Restore real errno */
     return tmp;

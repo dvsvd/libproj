@@ -56,24 +56,26 @@ typedef struct {
     int fd;
 } rw_msg_t;
 
-#define PAYLOAD_SIZE \
-    MAX(\
-        MAX(\
-            MAX(\
-                MAX(\
-                    MAX(\
-                        MAX(\
-                            sizeof(rw_msg_t), sizeof(lseek_msg_t)),\
-                        sizeof(close_msg_t)),\
-                    sizeof(open_msg_t)),\
-                sizeof(realloc_msg_t)),\
-            sizeof(free_msg_t)),\
-        sizeof(malloc_msg_t))
-
 typedef struct {
     int fn_id;
     struct timespec ts;
-    unsigned char payload[PAYLOAD_SIZE];
+    pid_t pid;
+    union {
+        malloc_msg_t malloc_msg;
+        free_msg_t free_msg;
+        realloc_msg_t realloc_msg;
+        open_msg_t open_msg;
+        close_msg_t close_msg;
+        lseek_msg_t lseek_msg;
+        rw_msg_t rw_msg;
+    } payload;
+#define malloc_msg payload.malloc_msg
+#define free_msg payload.free_msg
+#define realloc_msg payload.realloc_msg
+#define open_msg payload.open_msg
+#define close_msg payload.close_msg
+#define lseek_msg payload.lseek_msg
+#define rw_msg payload.rw_msg
 } msg_t;
 
 #endif /* MSG_BUF_H */

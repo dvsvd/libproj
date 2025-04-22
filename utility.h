@@ -3,7 +3,9 @@
 #include <time.h>
 #include <mqueue.h>
 
-//#define MSG_SIZE 256
+//TODO debug library
+// switch from MQ to custom shared memory-based mq
+// Make a write to non-existent mq a nop
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 

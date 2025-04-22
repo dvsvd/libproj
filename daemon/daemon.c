@@ -72,6 +72,7 @@ static void skeleton_daemon()
 
 static void handler(int)
 {
+    syslog(LOG_INFO, "SIGTERM recieved");
     is_stopped = !!1;
 }
 
@@ -96,58 +97,40 @@ int write_msg(FILE* file, const msg_t* msg)
     switch (msg->fn_id)
     {
     case MALLOC:
-    {
-        const malloc_msg_t* m = (const malloc_msg_t*)msg->payload;
-        ret = fprintf(file, "malloc() called: bytes requested: %ld, allocated address: %#0"PRIXPTR"\n", m->size, (uintptr_t)m->addr);
+        ret = fprintf(file, "malloc() called in process %d: "
+            "bytes requested: %ld, allocated address: %#0"PRIXPTR"\n",
+            msg->pid, msg->malloc_msg.size, (uintptr_t)msg->malloc_msg.addr);
         break;
-    }
     case FREE:
-    {
-        const free_msg_t* m = (const free_msg_t*)msg->payload;
-        ret = fprintf(file, "free() called: address: %#0"PRIXPTR"\n", (uintptr_t)m->addr);
+        ret = fprintf(file, "free() called in process %d: address: %#0"PRIXPTR"\n", msg->pid, (uintptr_t)msg->free_msg.addr);
         break;
-    }
     case REALLOC:
-    {
-        const realloc_msg_t* m = (const realloc_msg_t*)msg->payload;
-        ret = fprintf(file, "realloc() called: bytes requested: %ld, current address: %#0"PRIXPTR
-            ", allocated address: %#0"PRIXPTR"\n", m->size, (uintptr_t)m->cur_addr, (uintptr_t)m->alloc_addr);
+        ret = fprintf(file, "realloc() called in process %d: bytes requested: %ld, current address: %#0"PRIXPTR
+            ", allocated address: %#0"PRIXPTR"\n", msg->pid, msg->realloc_msg.size, (uintptr_t)msg->realloc_msg.cur_addr,
+            (uintptr_t)msg->realloc_msg.alloc_addr);
         break;
-    }
     case OPEN:
-    {
-        const open_msg_t* m = (const open_msg_t*)msg->payload;
-        ret = fprintf(file, "open() called: filename: %s, flags: %#0"PRIX32", "
-            "fd: %d\n", m->pathname, m->flags, m->fd);
+        ret = fprintf(file, "open() called in process %d: filename: %s, flags: %#0"PRIX32", "
+            "fd: %d\n", msg->pid, msg->open_msg.pathname, msg->open_msg.flags, msg->open_msg.fd);
         break;
-    }
     case CLOSE:
-    {
-        const close_msg_t* m = (const close_msg_t*)msg->payload;
-        ret = fprintf(file, "close() called: fd: %d, return code: %d\n", m->fd, m->ret);
+        ret = fprintf(file, "close() called in process %d: fd: %d, return code: %d\n", msg->pid, msg->close_msg.fd, msg->close_msg.ret);
         break;
-    }
     case LSEEK:
-    {
-        const lseek_msg_t* m = (const lseek_msg_t*)msg->payload;
-        ret = fprintf(file, "lseek() called: fd: %d, requested offset: %ld, "
-            "whence: %s, resulted offset: %ld\n", m->fd, m->offset, whence_text(m->whence), m->new_pos);
+        ret = fprintf(file, "lseek() called in process %d: fd: %d, requested offset: %ld, "
+            "whence: %s, resulted offset: %ld\n", msg->pid, msg->lseek_msg.fd, msg->lseek_msg.offset,
+            whence_text(msg->lseek_msg.whence), msg->lseek_msg.new_pos);
         break;
-    }
     case READ:
-    {
-        const rw_msg_t* m = (const rw_msg_t*)msg->payload;
-        ret = fprintf(file, "read() called: fd: %d, buffer pointer: %#0"PRIXPTR
-            ", count: %ld, bytes read: %ld\n", m->fd, (uintptr_t)m->buf_ptr, m->count, m->bytes_transmitted);
+        ret = fprintf(file, "read() called in process %d: fd: %d, buffer pointer: %#0"PRIXPTR
+            ", count: %ld, bytes read: %ld\n", msg->pid, msg->rw_msg.fd, (uintptr_t)msg->rw_msg.buf_ptr,
+            msg->rw_msg.count, msg->rw_msg.bytes_transmitted);
         break;
-    }
     case WRITE:
-    {
-        const rw_msg_t* m = (const rw_msg_t*)msg->payload;
-        ret = fprintf(file, "write() called: fd: %d, buffer pointer: %#0"PRIXPTR
-            ", count: %ld, bytes written: %ld\n", m->fd, (uintptr_t)m->buf_ptr, m->count, m->bytes_transmitted);
+        ret = fprintf(file, "write() called in process %d: fd: %d, buffer pointer: %#0"PRIXPTR
+            ", count: %ld, bytes written: %ld\n", msg->pid, msg->rw_msg.fd, (uintptr_t)msg->rw_msg.buf_ptr,
+            msg->rw_msg.count, msg->rw_msg.bytes_transmitted);
         break;
-    }
     default:
         return -1;
     }
@@ -170,7 +153,7 @@ int write_with_timestamp(FILE* file, const msg_t* msg)
         errno = ENOMEM;
         return -1;
     }
-    ret = sprintf(timestamp + tmsize, "%03d]: ", msecs);
+    ret = sprintf(timestamp + tmsize, "%03d] ", msecs);
     if(ret < 0)
     {
         errno = ENOMSG;
@@ -220,7 +203,7 @@ int main(int argc, char* argv[])
     struct mq_attr a = {0};
     int mqflags = O_RDONLY | O_CREAT;
 
-    if(argc < 2 || strcmp(argv[1], "--help") == 0)
+    if(argc > 1 && strcmp(argv[1], "--help") == 0)
     {
         print_help();
         return 0;
@@ -258,7 +241,7 @@ int main(int argc, char* argv[])
     /* Daemonize */
     skeleton_daemon();
 
-    if((ret = open(filename, O_CREAT | O_APPEND | O_WRONLY | O_EXCL, 0666)) == -1)
+    if((ret = open(filename, O_CREAT | O_APPEND | O_WRONLY | O_EXCL | O_SYNC, 0666)) == -1)
     {
         syslog(LOG_ERR, "open() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
         goto cleanup_base;
@@ -272,7 +255,6 @@ int main(int argc, char* argv[])
     /* Set up termination handler */
     sa.sa_handler = handler;
     sigaction(SIGTERM, &sa, NULL);
-    //sigaction(SIGINT, &sa, NULL);
 
     /* Set up mq attributes */
     a.mq_maxmsg = 10;
@@ -304,7 +286,7 @@ int main(int argc, char* argv[])
                 goto cleanup_full;
             }
         }
-        if(write_with_timestamp(logfile, &msg) == -1)
+        if(write_with_timestamp(logfile, &msg) < 0)
         {
             syslog(LOG_ERR, "write_with_timestamp() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
             goto cleanup_full;

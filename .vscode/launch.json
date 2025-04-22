@@ -23,7 +23,7 @@
             "program" : "${workspaceFolder}/build/daemon/logdaemond",
             "cwd" : "${workspaceFolder}/build/daemon",
             "MIMode": "gdb",
-            "args": ["-t", "3535", "-m"],
+            //"args": ["-t", "3535", "-m"],
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

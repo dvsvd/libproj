@@ -14,24 +14,6 @@ __attribute__((constructor)) static void setup(void)
     char* msg;
     mqd_t mqfd, ioqfd;
     int ret;
-    real_malloc = dlsym(RTLD_NEXT, "malloc");
-    msg = dlerror();
-    if(msg)
-    {
-        fprintf(stderr, "%s\n", msg);
-    }
-    real_free = dlsym(RTLD_NEXT, "free");
-    msg = dlerror();
-    if(msg)
-    {
-        fprintf(stderr, "%s\n", msg);
-    }
-    real_realloc = dlsym(RTLD_NEXT, "realloc");
-    msg = dlerror();
-    if(msg)
-    {
-        fprintf(stderr, "%s\n", msg);
-    }
     real_perror = dlsym(RTLD_NEXT, "perror");
     msg = dlerror();
     if(msg)
@@ -80,13 +62,10 @@ mqd_t get_mem_mq(void)
 {
     static mqd_t fd;
     static _Bool is_init = !!0;
-    struct mq_attr a = {0};
-    a.mq_maxmsg = 10;
-    a.mq_msgsize = sizeof(msg_t);
     if(!is_init)
     {
-        fd = mq_open(MEM_MQ_NAME, O_WRONLY | O_CREAT, 0600, &a);
-        is_init = !!1;
+        fd = mq_open(MEM_MQ_NAME, O_WRONLY);
+        if(fd != -1) is_init = !!1;
     }
     return fd;
 }
@@ -95,13 +74,10 @@ mqd_t get_io_mq(void)
 {
     static mqd_t fd;
     static _Bool is_init = !!0;
-    struct mq_attr a = {0};
-    a.mq_maxmsg = 10;
-    a.mq_msgsize = sizeof(msg_t);
     if(!is_init)
     {
-        fd = mq_open(IO_MQ_NAME, O_WRONLY | O_CREAT, 0600, &a);
-        is_init = !!1;
+        fd = mq_open(IO_MQ_NAME, O_WRONLY);
+        if(fd != -1) is_init = !!1;
     }
     return fd;
 }
