@@ -1,4 +1,4 @@
-set(APP_NAME testproj)
+set(APP_NAME logdaemon)
 
 add_executable(${APP_NAME} "")
 set_target_properties(${APP_NAME} PROPERTIES
@@ -10,4 +10,4 @@ set_target_properties(${APP_NAME} PROPERTIES
 
 target_compile_options(${APP_NAME} PRIVATE "-pthread" "-m64")
 
-target_sources(${APP_NAME} PRIVATE testproj.c)
+target_sources(${APP_NAME} PRIVATE daemon.c)

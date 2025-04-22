@@ -6,13 +6,43 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name" : "C GDB Debug",
+            "name" : "C GDB Debug Testproj",
             "type": "cppdbg",
             "request": "launch",
+            "targetArchitecture": "x64",
             "program" : "${workspaceFolder}/build/testproj/testprojd",
             "cwd" : "${workspaceFolder}/build",
             "MIMode": "gdb",
             "environment" : [{"name" : "LD_PRELOAD", "value" : "${workspaceFolder}/build/libproj/liblibprojd.so"}]
+        },
+        {
+            "name" : "C GDB Debug Daemon",
+            "type": "cppdbg",
+            "request": "launch",
+            "targetArchitecture": "x64",
+            "program" : "${workspaceFolder}/build/daemon/logdaemond",
+            "cwd" : "${workspaceFolder}/build/daemon",
+            "MIMode": "gdb",
+            //"args": ["-t", "3535", "-m"],
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    // https://sourceware.org/gdb/onlinedocs/gdb/Forks.html
+                    "description": "Fork follows Child process",
+                    "text": "set follow-fork-mode child",
+                    "ignoreFailures": true
+                },
+                {
+                    // https://sourceware.org/gdb/onlinedocs/gdb/Forks.html
+                    "description": "Fork will keep the other process attached to debugger",
+                    "text": "set detach-on-fork on",
+                    "ignoreFailures": true
+                }
+            ]
         }
     ]
 }
