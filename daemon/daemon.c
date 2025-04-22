@@ -72,7 +72,6 @@ static void skeleton_daemon()
 
 static void handler(int)
 {
-    syslog(LOG_INFO, "SIGTERM recieved");
     is_stopped = !!1;
 }
 
@@ -143,18 +142,18 @@ int write_with_timestamp(FILE* file, const msg_t* msg)
     int ret;
     int msecs;
     size_t tmsize; /* size of the timestamp in the buffer */
-    struct tm gt = {0};
+    struct tm gt = {0}; /* local time tm structure */
     char timestamp[timestamp_size] = {0};
+
     localtime_r(&msg->ts.tv_sec, &gt);
     msecs = msg->ts.tv_nsec / 1000000L;
-    tmsize = strftime(timestamp, timestamp_size, "[%F %T.", &gt);
-    if(tmsize == 0)
+
+    if((tmsize = strftime(timestamp, timestamp_size, "[%F %T.", &gt)) == 0)
     {
         errno = ENOMEM;
         return -1;
     }
-    ret = sprintf(timestamp + tmsize, "%03d] ", msecs);
-    if(ret < 0)
+    if((ret = sprintf(timestamp + tmsize, "%03d] ", msecs)) < 0)
     {
         errno = ENOMSG;
         return -1;
@@ -175,6 +174,7 @@ void print_help(void)
         "\t-n <name>: log file name (default: \"libprojdaemon-date-time.log\")\n"
         "\t--help: print this help message\n");
 }
+
 
 void get_default_name(char* buf, size_t size, _Bool is_mem)
 {
@@ -241,7 +241,8 @@ int main(int argc, char* argv[])
     /* Daemonize */
     skeleton_daemon();
 
-    if((ret = open(filename, O_CREAT | O_APPEND | O_WRONLY | O_EXCL | O_SYNC, 0666)) == -1)
+    /* Open log file and mq */
+    if((ret = open(filename, O_CREAT | O_APPEND | O_WRONLY | O_EXCL, 0666)) == -1)
     {
         syslog(LOG_ERR, "open() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
         goto cleanup_base;
@@ -270,6 +271,8 @@ int main(int argc, char* argv[])
         goto cleanup_file;
     }
 
+    syslog(LOG_INFO, "%s logdaemon successfully started", daemon_type);
+
     /* Begin main loop */
     while(!is_stopped)
     {
@@ -291,6 +294,8 @@ int main(int argc, char* argv[])
             syslog(LOG_ERR, "write_with_timestamp() failed in "__FILE__" at line "LINESTR": %s", strerror(errno));
             goto cleanup_full;
         }
+        /* O_SYNC bears no effect so use fflush */
+        fflush(logfile);
         memset((char*)&msg, 0, size);
     }
 
@@ -304,7 +309,7 @@ cleanup_file:
     fclose(logfile);
 
 cleanup_base:
-    syslog(LOG_INFO, "%s daemon (PID: %d) successfully shut down", daemon_type, getpid());
+    syslog(LOG_INFO, "%s daemon successfully shut down", daemon_type);
     closelog();
     return 0;
 }

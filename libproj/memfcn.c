@@ -29,7 +29,11 @@ void* malloc(size_t size)
     int err; /* real errno */
     msg_t m;
     char* e_msg;
+
+    /* Get call time */
     timespec_get(&m.ts, TIME_UTC);
+
+    /* Get real_malloc if not found already */
     if(!real_malloc)
     {
         real_malloc = dlsym(RTLD_NEXT, "malloc");
@@ -39,18 +43,27 @@ void* malloc(size_t size)
             fprintf(stderr, "%s\n", e_msg);
         }
     }
+
+    /* Do not perform logging in certain situations */
     if(is_default)
     {
         return real_malloc(size);
     }
+
+    /* Get mq */
     qfd = get_mem_mq();
+
+    /* Execute real function and save its errno */
     tmp = real_malloc(size);
     err = errno;
+
+    /* Fill in the message */
     m.fn_id = MALLOC;
     m.pid = getpid();
     m.malloc_msg.size = size;
     m.malloc_msg.addr = tmp;
-    //memset(&m.malloc_msg + sizeof m.malloc_msg, 0, sizeof m.payload - sizeof m.malloc_msg);
+
+    /* Send the message */
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
         switch (errno)
@@ -61,7 +74,9 @@ void* malloc(size_t size)
             perror("mq_send() failed in "__FILE__" at line "LINESTR);
         }
     }
-    errno = err; /* Restore real errno */
+
+    /* Restore real errno */
+    errno = err;
     return tmp;
 }
 
@@ -70,8 +85,12 @@ void free(void* ptr)
     int ret;
     mqd_t qfd;
     msg_t m;
-    timespec_get(&m.ts, TIME_UTC);
     char* e_msg;
+
+    /* Get call time */
+    timespec_get(&m.ts, TIME_UTC);
+
+    /* Get real_free if not found already */
     if(!real_free)
     {
         real_free = dlsym(RTLD_NEXT, "free");
@@ -81,15 +100,22 @@ void free(void* ptr)
             fprintf(stderr, "%s\n", e_msg);
         }
     }
+
+    /* Do not perform logging in certain situations */
     if(is_default)
     {
         return real_free(ptr);
     }
+
+    /* Get mq */
     qfd = get_mem_mq();
+
+    /* Fill in the message */
     m.fn_id = FREE;
     m.pid = getpid();
     m.free_msg.addr = ptr;
-    //memset(&m.free_msg + sizeof m.free_msg, 0, sizeof m.payload - sizeof m.free_msg);
+
+    /* Send the message */
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
         switch (errno)
@@ -111,7 +137,11 @@ void* realloc(void* ptr, size_t size)
     int ret;
     msg_t m;
     char* e_msg;
+
+    /* Get call time */
     timespec_get(&m.ts, TIME_UTC);
+
+    /* Get real_realloc if not found already */
     if(!real_realloc)
     {
         real_realloc = dlsym(RTLD_NEXT, "realloc");
@@ -121,19 +151,28 @@ void* realloc(void* ptr, size_t size)
             fprintf(stderr, "%s\n", e_msg);
         }
     }
+
+    /* Do not perform logging in certain situations */
     if(is_default)
     {
         return real_realloc(ptr, size);
     }
+
+    /* Get mq */
     qfd = get_mem_mq();
+
+    /* Execute real function and save its errno */
     tmp = real_realloc(ptr, size);
     err = errno;
+
+    /* Fill in the message */
     m.fn_id = REALLOC;
     m.pid = getpid();
     m.realloc_msg.cur_addr = ptr;
     m.realloc_msg.alloc_addr = tmp;
     m.realloc_msg.size = size;
-    //memset(&m.realloc_msg + sizeof m.realloc_msg, 0, sizeof m.payload - sizeof m.realloc_msg);
+
+    /* Send the message */
     if(mq_send(qfd, (const char*)&m, sizeof(msg_t), 0) == -1)
     {
         switch (errno)
@@ -144,6 +183,8 @@ void* realloc(void* ptr, size_t size)
             perror("mq_send() failed in "__FILE__" at line "LINESTR);
         }
     }
-    errno = err; /* Restore real errno */
+    
+    /* Restore real errno */
+    errno = err;
     return tmp;
 }
