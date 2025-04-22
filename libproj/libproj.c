@@ -58,6 +58,7 @@ __attribute__((constructor)) static void setup(void)
     is_default = !!0;
 }
 
+/* mem_mq singleton */
 mqd_t get_mem_mq(void)
 {
     static mqd_t fd;
@@ -70,6 +71,7 @@ mqd_t get_mem_mq(void)
     return fd;
 }
 
+/* io_mq singleton */
 mqd_t get_io_mq(void)
 {
     static mqd_t fd;
@@ -84,12 +86,10 @@ mqd_t get_io_mq(void)
 
 __attribute__((destructor)) static void deinit(void)
 {
-    if(mq_unlink(MEM_MQ_NAME) == -1)
-    {
-        perror("shm_unlink() failed in "__FILE__" at line "LINESTR);
-    }
-    if(mq_unlink(IO_MQ_NAME) == -1)
-    {
-        perror("shm_unlink() failed in "__FILE__" at line "LINESTR);
-    }
+    mqd_t iomq = get_io_mq();
+    mqd_t memmq = get_mem_mq();
+    mq_close(iomq);
+    mq_close(memmq);
+    mq_unlink(MEM_MQ_NAME);
+    mq_unlink(IO_MQ_NAME);
 }

@@ -12,7 +12,7 @@ malloc_t real_malloc;
 free_t real_free;
 realloc_t real_realloc;
 perror_t real_perror;
-atomic_bool is_default = ATOMIC_VAR_INIT(!!1); /* Default memory functions behaviour flag */
+atomic_bool is_default = !!1; /* Default memory functions behaviour flag */
 
 void perror(const char* s)
 {

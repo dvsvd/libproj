@@ -16,7 +16,7 @@
 
 // add-symbol-file /home/a/repos/libproj/build/libproj/liblibprojd.so
 
-atomic_bool is_stopped = ATOMIC_VAR_INIT(!!0);
+atomic_bool is_stopped = !!0;
 
 static void skeleton_daemon()
 {
@@ -70,8 +70,9 @@ static void skeleton_daemon()
     openlog ("logdaemon", LOG_PID, LOG_DAEMON);
 }
 
-static void handler(int)
+static void handler(int sig)
 {
+    (void)sig;
     is_stopped = !!1;
 }
 
